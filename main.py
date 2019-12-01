@@ -1,7 +1,9 @@
-import json, os
-from util import lcm
-from tqdm import tqdm
+import json, os, math, shutil
 from enum import Enum
+from multiprocessing import Pool
+from tqdm import tqdm
+from glob import glob
+from util import lcm
 
 class NoteType(Enum):
 	TAP = 0
@@ -54,15 +56,6 @@ class Song:
 		self.artist_translit = None
 		self.bpm_changes = None # List of tuples (RowTime, bpm int)
 		self.malody_id = None
-	
-	# Goes through all charts and tries to find a background picture.
-	# If there's different pictures used in each chart, it picks one
-	def find_common_bg(self):
-		bg = self.charts[0].background
-		# If any chart has a different background, warn
-		if any(other.background != bg for other in self.charts[1:]):
-			print(f"Warning: Different backgrounds")
-		return bg
 
 class Library:
 	def __init__(self, songs=[]):
@@ -93,6 +86,7 @@ class Library:
 				"$ver", "creator", "background", "version",
 				"id", "mode", "time", "song", "mode_ext", "video"])
 		assert_known_fields(mc["meta"]["song"], [
+				#"source", "org", # Not sure what those are
 				"title", "titleorg", "artist", "artistorg", "id"])
 		assert_known_fields(mc["meta"]["mode_ext"], [
 				"column", "bar_begin"])
@@ -241,7 +235,7 @@ def sm_bpm_string(song):
 def write_sm(song):
 	o = ""
 	
-	background = song.find_common_bg()
+	background = song.charts[0].background # Bluntly discard every background but the first
 	meta_mapping = {
 		"TITLE": song.title,
 		"TITLETRANSLIT": song.title_translit,
@@ -275,22 +269,99 @@ def write_sm(song):
 	
 	return o
 
-# ~ path = "../download-malody-charts/output/_song_9738/43703/1562241155.mc"
-path = "/home/kangalioo/misc/small-programs/Malody-4.3.7/beatmap/_temp_1575194910/1575194910.mc"
-library = Library()
-import glob, random
-mc_paths = glob.glob("charts/*/*.mc")
-for path in mc_paths:
-	# ~ with open(path) as f: print(json.dumps(json.load(f), indent=4))
-	try:
-		library.parse_mc(path)
-	except Exception as e:
-		print(f"Error in {path}")
-		raise e
-library.print_stats()
-for song in library.songs:
-	source_path = song.charts[0].source_path
-	target_path = os.path.join(os.path.dirname(source_path), "chart.sm")
-	with open(target_path, "w") as f:
-		print(f"Writing chart from {source_path} into {target_path}")
-		f.write(write_sm(song))
+def copy_maybe(src, dst):
+	if not os.path.exists(dst):
+		shutil.copyfile(src, dst)
+
+def build_library(malody_songs_dir):
+	library = Library()
+	
+	mc_paths = glob(os.path.join(malody_songs_dir, "*/*/*.mc"))
+	for path in mc_paths:
+		try:
+			library.parse_mc(path)
+		except Exception as e:
+			print(f"Error in {path}: {str(e)}")
+	
+	return library
+
+def assemble_sm_pack(library, output_dir):
+	for song in library.songs:
+		source_path = song.charts[0].source_path
+		source_dir = os.path.dirname(source_path)
+		target_dir = os.path.join(output_dir, str(song.malody_id))
+		os.makedirs(target_dir, exist_ok=True)
+		target_path = os.path.join(target_dir, "file.sm")
+		
+		for src_file in glob(os.path.join(source_dir, "*")):
+			target_file = os.path.join(target_dir, os.path.basename(src_file))
+			if src_file.endswith(".mc"):
+				target_file += ".old"
+			#print(f"Copying {src_file} to {target_file}")
+			copy_maybe(src_file, target_file)
+		
+		with open(target_path, "w") as f:
+			print(f"Writing chart from {source_path} into {target_path}")
+			try:
+				f.write(write_sm(song))
+			except Exception:
+				print(f"uh oh error while writing sm {source_path}")
+
+def analyze(song_dir):
+	sm_path = os.path.join(song_dir, "file.sm")
+	minacalc_output = os.popen(f"./minacalc {sm_path}").readlines()
+	
+	overalls = []
+	for line in minacalc_output:
+		if line.startswith("Overall"):
+			overalls.append(float(line[9:]))
+	
+	return overalls
+
+def analyze_msd(basedir):
+	pool = Pool()
+	
+	song_dirs = glob(os.path.join(basedir, "*"))
+	overalls = pool.map(analyze, song_dirs)
+	
+	max_overall = max(max(o) for o in overalls if len(o) > 0)
+	
+	# Key=(lower, upper) Value=[songdir...]
+	buckets = {}
+	bucket_lower = None
+	bucket = []
+	
+	def finish_bucket():
+		nonlocal buckets, bucket, bucket_lower
+		
+		buckets[(bucket_lower, upper)] = bucket
+		print(f"{bucket_lower}-{upper}: {len(bucket)} files")
+		
+		bucket = []
+		bucket_lower = None
+	
+	for lower in range(0, math.ceil(max_overall)):
+		if bucket_lower is None: bucket_lower = lower
+		upper = lower + 1
+		
+		for song_dir, overall in zip(song_dirs, overalls):
+			if any(o >= lower and o < upper for o in overall):
+				bucket.append(song_dir)
+		
+		if len(bucket) > 30: finish_bucket()
+	finish_bucket()
+	
+	pool.close()
+
+def main():
+	# ~ library = build_library("../download-malody-charts/output")
+	# ~ library.print_stats()
+	
+	output_dir = "output"
+	# ~ assemble_sm_pack(library, output_dir)
+	
+	analyze_msd(output_dir)
+	
+
+if __name__ == "__main__":
+	main()
