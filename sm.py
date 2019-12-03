@@ -1,13 +1,13 @@
 from util import lcm
 
 CHART_TYPE_STRINGS = {
-	4: "dance-single",
-	5: "pump-single",
-	6: "dance-solo",
-	7: "kb7-single",
-	8: "dance-double",
-	9: "pnm-nine",
-	10: "pump-double",
+	4: ["dance-single"],
+	5: ["pump-single"],
+	6: ["dance-solo"],
+	7: ["kb7-single"],
+	8: ["dance-double", "bm-single7"],
+	9: ["pnm-nine"],
+	10: ["pump-double"],
 }
 
 # Returns a note section in the following format:
@@ -90,16 +90,17 @@ def write_sm(song):
 	
 	for chart in song.charts:
 		note_section = sm_note_data(chart.notes, chart.num_columns)
-		type_string = CHART_TYPE_STRINGS[chart.num_columns]
-		s = chart.chart_string or "" # Chart name e.g. "4k Super"
-		o += f"\n//---------------{type_string} - {s}----------------\n" \
-				+ f"#NOTES:\n" \
-				+ f"     {type_string}:\n" \
-				+ f"     :\n" \
-				+ f"     Edit:\n" \
-				+ f"     1:\n" \
-				+ f"     0,0,0,0,0:\n" \
-				+ f"{note_section}\n;\n"
+		difficulty = chart.difficulty or 1
+		s = chart.chart_string[:3] or "" # Chart name e.g. "4k Super"
+		for type_string in CHART_TYPE_STRINGS[chart.num_columns]:
+			o += f"\n//---------------{type_string} - {s}----------------\n" \
+					+ f"#NOTES:\n" \
+					+ f"     {type_string}:\n" \
+					+ f"     :\n" \
+					+ f"     Edit:\n" \
+					+ f"     {difficulty}:\n" \
+					+ f"     0,0,0,0,0:\n" \
+					+ f"{note_section}\n;\n"
 	
 	return o
 

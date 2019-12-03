@@ -1,4 +1,4 @@
-import json
+import json, re
 from enum import Enum
 from collections import Counter
 
@@ -35,6 +35,7 @@ class Chart:
 		self.video = None
 		self.background = None
 		self.num_columns = None
+		self.difficulty = None # Can be None
 		self.notes = None
 		
 		self.source_path = None
@@ -122,12 +123,14 @@ class Library:
 		
 		return RowTime(bar, beat, snap)
 	
-	def parse_mc(self, path, verify=True):
+	def parse_mc(self, path, verify=True, keymode_filter=None):
 		with open(path) as f:
 			mc = json.load(f)
-		gamemode = mc["meta"]["mode"]
-		if gamemode != 0: return # If not key mode, ignore
+		if mc["meta"]["mode"] != 0:
+			return # If not key mode, ignore
 		if verify: self.verify_mc(mc)
+		if keymode_filter and keymode_filter != mc["meta"]["mode_ext"]["column"]:
+			return # Wrong keymode is filtered
 		
 		song = self.get_song_by_malody_id(mc["meta"]["song"]["id"])
 		chart = Chart() # Chart output object
@@ -135,8 +138,15 @@ class Library:
 		
 		chart.creator = mc["meta"]["creator"]
 		chart.chart_string = mc["meta"]["version"]
+		print(chart.chart_string)
 		chart.background = mc["meta"].get("background", None)
 		chart.num_columns = mc["meta"]["mode_ext"]["column"]
+		
+		# Try to find difficulty from the chart string
+		numbers = map(int, re.findall(r"\d+", chart.chart_string))
+		numbers = [n for n in numbers if n != chart.num_columns and n < 100]
+		if len(numbers) == 1:
+			chart.difficulty = numbers[0]
 		
 		if "titleorg" in mc["meta"]["song"]:
 			song.title = mc["meta"]["song"]["titleorg"]
@@ -164,6 +174,8 @@ class Library:
 		notes = []
 		for event in mc["note"]:
 			event_type = event.get("type", 0)
+			if event_type == 1 and "sound" not in event:
+				event_type = 0
 			if event_type == 0: # Note event
 				is_hold = "endbeat" in event
 				
@@ -183,7 +195,7 @@ class Library:
 				song.audio = event["sound"]
 				offset_ms = event.get("offset", 0)
 				song.offset = offset_ms / 1000
-				if event["vol"] != 100:
+				if event.get("vol", 100) != 100:
 					pass
 					#print(f"Warning: 'vol' is not 100 but {event['vol']}")
 			else:
@@ -195,3 +207,7 @@ class Library:
 			print("Warning: no audio file detected")
 		
 		song.charts.append(chart)
+	
+	# Removes empty songs
+	def clean_empty_songs(self):
+		self.songs = [s for s in self.songs if len(s.charts) != 0]
