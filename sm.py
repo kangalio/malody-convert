@@ -1,4 +1,6 @@
-from util import lcm
+import math
+import copy
+from util import lcm, is_whole
 
 CHART_TYPE_STRINGS = {
 	4: ["dance-single"],
@@ -60,10 +62,31 @@ def sm_note_data(notes, columns):
 	return "\n,\n".join(bar_texts)
 
 def sm_bpm_string(song):
+	# Make copy of bpm changes cuz they'll be modified
+	# Also turn RowTime's into numbers
+	rows = [row.absolute_bar() for row, bpm in song.bpm_changes]
+	bpms = [bpm for row, bpm in song.bpm_changes]
+	
+	# This loop snaps all bpm changes to the 192nds grid and adjusts
+	# the bpm values to preserve sync. This is required because SM
+	# can't handle bpm changes lying besides the 192nds grid.
+	for i, (row, bpm) in enumerate(zip(rows, bpms)):
+		# If bpm change lies on 192nd grid already, skip
+		if is_whole(row * 192): continue
+		
+		# New row is snapped to the 192nd grid to satisfy SM
+		new_row = round(row * 192) / 192
+		
+		time_mul_a = (new_row - rows[i-1]) / (row - rows[i-1])
+		time_mul_b = (rows[i+1] - new_row) / (rows[i+1] - row)
+		
+		rows[i] = new_row
+		bpms[i-1] *= time_mul_a
+		bpms[i] *= time_mul_b
+	
 	bpm_strings = []
-	for row, bpm in song.bpm_changes:
-		absolute_bar = row.bar + row.beat / row.snap
-		bpm_strings.append(f"{absolute_bar*4}={bpm}")
+	for row, bpm in zip(rows, bpms):
+		bpm_strings.append(f"{row*4}={bpm:.10}")
 	return ",\n".join(bpm_strings)
 
 def gen_sm(song):
