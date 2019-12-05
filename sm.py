@@ -1,6 +1,7 @@
 import math
 import copy
-from util import lcm, gcd, is_whole
+import util
+from util import lcm, gcd
 
 CHART_TYPE_STRINGS = {
 	4: ["dance-single"],
@@ -11,6 +12,10 @@ CHART_TYPE_STRINGS = {
 	9: ["pnm-nine"],
 	10: ["pump-double"],
 }
+
+# Replace colons and semicolons with spaces
+def escape(string):
+	return string.replace(":", " ").replace(";", " ")
 
 # Returns a note section in the following format:
 ###########
@@ -76,7 +81,7 @@ def sm_bpm_string(song):
 	# can't handle bpm changes lying besides the 192nds grid.
 	for i, (row, bpm) in enumerate(zip(rows, bpms)):
 		# If bpm change lies on 192nd grid already, skip
-		if is_whole(row * 192): continue
+		if util.is_whole(row * 192): continue
 		
 		# New row is snapped to the 192nd grid to satisfy SM
 		new_row = round(row * 192) / 192
@@ -114,17 +119,18 @@ def gen_sm(song):
 	for field, value in meta_mapping.items():
 		if value is None:
 			continue
-		o += f"#{field}:{value};\n"
+		o += f"#{field}:{escape(str(value))};\n"
 	
 	for chart in song.charts:
 		note_section = sm_note_data(chart.notes, chart.num_columns)
 		difficulty = chart.difficulty or 1
+		chart_string_escaped = escape(chart.chart_string)
 		for type_string in CHART_TYPE_STRINGS[chart.num_columns]:
 			o += f"\n// Credit for this chart goes to Malody mapper \"{chart.creator}\"\n"
 			o += f"//---------------{type_string} - {chart.chart_string}----------------\n" \
 					+ f"#NOTES:\n" \
 					+ f"     {type_string}:\n" \
-					+ f"     {chart.chart_string}:\n" \
+					+ f"     {chart_string_escaped}:\n" \
 					+ f"     Edit:\n" \
 					+ f"     {difficulty}:\n" \
 					+ f"     0,0,0,0,0:\n" \
