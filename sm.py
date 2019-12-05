@@ -101,12 +101,18 @@ def sm_bpm_string(song):
 def gen_sm(song):
 	o = ""
 	
+	if any(chart.audio is None for chart in song.charts):
+		subtitle = "One or more charts have no audio because keysounds are not supported"
+	else:
+		subtitle = None
+	
 	background = song.charts[0].background # Bluntly discard every background but the first
 	meta_mapping = {
 		"TITLE": song.title,
 		"TITLETRANSLIT": song.title_translit,
 		"ARTIST": song.artist,
 		"ARTISTTRANSLIT": song.artist_translit,
+		"SUBTITLE": subtitle,
 		"MUSIC": song.audio,
 		"OFFSET": song.offset,
 		"CREDIT": ", ".join(song.get_creator_list()),
