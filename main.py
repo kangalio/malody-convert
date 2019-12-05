@@ -2,11 +2,13 @@ from convert import *
 
 """
 TODO:
-- Offsync problems! E.g. in Accelerator and that other chart I played
 - Limit snap to 192nd
 - Maybe render keysounds
 - Look at issue with unbounded holds
 - Look at data.zip not being extracted
+
+Done:
+- Offsync problems! E.g. in Accelerator and that other chart I played
 - Better folder naming scheme
 """
 

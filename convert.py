@@ -2,6 +2,7 @@ import os, math, shutil, logging, subprocess
 from glob import glob
 from sm import *
 from chart import *
+import util
 
 def copy_maybe(src, dst, force=False, move=False):
 	if move:
