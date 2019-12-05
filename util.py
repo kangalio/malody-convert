@@ -1,5 +1,7 @@
-import math
+import math, logging
 from functools import reduce
+
+logger = logging.getLogger()
 
 def lcm(a):
 	lcm = a[0]
