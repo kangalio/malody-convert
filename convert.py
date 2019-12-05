@@ -37,7 +37,7 @@ def assemble_sm_pack(library, output_dir):
 	for song in library.songs:
 		source_path = song.charts[0].source_path
 		source_dir = os.path.dirname(source_path)
-		target_dir = os.path.join(output_dir, str(song.malody_id))
+		target_dir = os.path.join(output_dir, f"{song.title} [{song.malody_id}]")
 		os.makedirs(target_dir, exist_ok=True)
 		target_path = os.path.join(target_dir, "file.sm")
 		
