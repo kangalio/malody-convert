@@ -19,8 +19,11 @@ class RowTime:
 		self.beat = beat
 		self.snap = snap
 	
+	def __repr__(self):
+		return f"{self.bar}:{self.beat}/{self.snap}"
+	
 	def absolute_bar(self):
-		return self.bar + self.beat / self.snap
+		return round(self.bar + self.beat / self.snap, 10)
 
 class Note:
 	def __init__(self, column, row, note_type):
@@ -39,6 +42,11 @@ class Chart:
 		self.notes = None
 		
 		self.source_path = None
+	
+	def __eq__(self, other):
+		return self.creator == other.creator \
+			and self.chart_string == other.chart_string \
+			and self.num_columns == other.num_columns
 
 class Song:
 	def __init__(self, charts=None):
@@ -142,9 +150,10 @@ class Library:
 		
 		chart.creator = mc["meta"]["creator"]
 		chart.chart_string = mc["meta"]["version"]
-		# ~ print(chart.chart_string)
 		chart.background = mc["meta"].get("background", None)
 		chart.num_columns = mc["meta"]["mode_ext"]["column"]
+		
+		if chart in song.charts: return # Duplicate chart
 		
 		# Try to smartly find difficulty from the chart string
 		numbers = map(int, re.findall(r"\d+", chart.chart_string))
