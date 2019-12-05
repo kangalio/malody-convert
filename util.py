@@ -9,6 +9,9 @@ def lcm(a):
 		lcm = lcm * i // math.gcd(lcm, i)
 	return lcm
 
+def gcd(a):
+	return reduce(math.gcd, a)
+
 def is_whole(n):
 	error = abs(n - round(n))
 	return error < 1e-6

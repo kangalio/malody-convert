@@ -1,6 +1,6 @@
 import math
 import copy
-from util import lcm, is_whole
+from util import lcm, gcd, is_whole
 
 CHART_TYPE_STRINGS = {
 	4: ["dance-single"],
@@ -45,7 +45,11 @@ def sm_note_data(notes, columns):
 			continue
 		
 		snaps = [note.row.snap for note in bar_notes]
+		beats = [note.row.beat for note in bar_notes]
 		snap = lcm(snaps)
+		snap = snap // gcd([snap, *beats]) # Snap is unneccesarily big sometimes
+		snap = min(192, snap) # Limit snap to 192nds
+		
 		rows = [[0] * columns for _ in range(snap)]
 		
 		for note in bar_notes:
@@ -102,7 +106,7 @@ def gen_sm(song):
 		"OFFSET": song.offset,
 		"CREDIT": ", ".join(song.get_creator_list()),
 		"BACKGROUND": background,
-		"BANNER": background, # Not sure if this is a good idea
+		"BANNER": background,
 		"BPMS": sm_bpm_string(song),
 		# TODO: implement background video via BGCHANGES
 	}
