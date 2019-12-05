@@ -3,11 +3,31 @@ from glob import glob
 from sm import *
 from chart import *
 
+"""
+TODO:
+- Offsync problems! E.g. in Accelerator and that other chart I played
+- Limit snap to 192nd
+- Maybe render keysounds
+- Look at issue with unbounded holds
+- Look at data.zip not being extracted
+- Better folder naming scheme
+"""
+
 logger = logging.getLogger()
 
-def copy_maybe(src, dst):
-	if not os.path.exists(dst):
-		shutil.copyfile(src, dst)
+def copy_maybe(src, dst, force=False, move=False):
+	if move:
+		exit() # REMEMBER
+		shutil.move(src, dst)
+	else:
+		try:
+			shutil.copytree(src, dst, dirs_exist_ok=True)
+		except OSError as e:
+			if e.errno == 20: # src was not a directory
+				if not force and os.path.exists(dst): return
+				shutil.copy(src, dst)
+			else:
+				raise e
 
 def build_library(malody_songs_dir, limit=None, **kwargs):
 	library = Library()
@@ -37,39 +57,33 @@ def assemble_sm_pack(library, output_dir):
 			target_file = os.path.join(target_dir, os.path.basename(src_file))
 			if src_file.endswith(".mc"):
 				target_file += ".old"
-			#print(f"Copying {src_file} to {target_file}")
+			# ~ print(f"Copying {src_file} to {target_file}")
 			copy_maybe(src_file, target_file)
 		
 		with open(target_path, "w") as f:
 			print(f"Writing chart from {source_path} into {target_path}")
 			try:
-				f.write(write_sm(song))
+				f.write(gen_sm(song))
+				# ~ gen_sm(song)
 			except Exception:
 				logger.exception(f"Error while writing into {target_path} from {source_path}")
 
 def analyze(song_dir):
 	sm_path = os.path.join(song_dir, "file.sm")
-	cmd = ["./minacalc", sm_path]
-	try:
-		# ~ minacalc_output = subprocess.check_output(cmd, stderr=open(os.devnull, "w")).decode("UTF-8")
-		minacalc_output = os.popen(" ".join(cmd)).read()
-	except subprocess.CalledProcessError as e:
-		raise e
-		# ~ print(f"Minacalc died with {sm_path} :(")
-		# ~ return None
+	lines = os.popen(f"./minacalc '{sm_path}'").readlines()
 	
 	overalls = []
-	for line in minacalc_output.splitlines():
+	for line in lines:
 		if line.startswith("Overall"):
 			overalls.append(float(line[9:]))
 	
 	return overalls
 
-def analyze_msd(basedir):
+def analyze_msd(basedir, outdir, soft_pack_limit=200, hard_pack_limit=350):
 	from multiprocessing import Pool
 	pool = Pool()
 	
-	song_dirs = glob(os.path.join(basedir, "*"))[:500] # REMEMBER
+	song_dirs = glob(os.path.join(basedir, "*"))
 	overalls = pool.map(analyze, song_dirs)
 	pool.close()
 	
@@ -105,30 +119,47 @@ def analyze_msd(basedir):
 			if any(o >= lower and o < upper for o in overall):
 				bucket.append(song_dir)
 		
-		if upper % 1 == 0:
-			if len(bucket) > 60: finish_bucket()
-		else: # If we have an ugly non-whole limit, give a lil more
-			# tolerance, maybe we can get the bucket to a whole limit
-			# before it gets too large
-			if len(bucket) > 150: finish_bucket()
+		if len(bucket) >= soft_pack_limit: finish_bucket()
+		
+		# ~ if upper % 1 == 0:
+			# ~ if len(bucket) > 60: finish_bucket()
+		# ~ else: # If we have an ugly non-whole limit, give a lil more
+			# ~ # tolerance, maybe we can get the bucket to a whole limit
+			# ~ # before it gets too large
+			# ~ if len(bucket) > 150: finish_bucket()
 	
 	upper = math.ceil(upper)
 	if len(bucket) > 0: finish_bucket()
+	
+	for (lower, upper), song_dirs in buckets.items():
+		num_subpacks = math.ceil(len(song_dirs) / hard_pack_limit)
+		subpack_size = math.ceil(len(song_dirs) / num_subpacks)
+		for i, song_dir in enumerate(song_dirs):
+			if i % subpack_size == 0:
+				pack_name = f"Malody 4k Megapack ({lower}-{upper})"
+				if num_subpacks > 1:
+					pack_name = pack_name[:-1] + f" {i//subpack_size+1})"
+				dst_parent = os.path.join(outdir, "4k-grouped", pack_name)
+				os.makedirs(dst_parent, exist_ok=True)
+			
+			dst_dir = os.path.join(dst_parent, os.path.basename(song_dir))
+			print(f"copy from {song_dir} to {dst_dir}")
+			copy_maybe(song_dir, dst_dir)
 
 def main():
-	keymode_filter = 8
+	# ~ for keymode_filter in [6,7,8,9,10]:
+	for keymode in [8]:
 	
-	output_dir = "output"
-	if keymode_filter: output_dir += f"-{keymode_filter}k"
-	
-	print("Parsing charts...")
-	library = build_library("../download-malody-charts/output", limit=None, keymode_filter=keymode_filter)
-	library.print_stats()
-	
-	print("Writing charts as .sm...")
-	assemble_sm_pack(library, output_dir)
-	
-	# ~ analyze_msd(output_dir)
+		output_dir = f"output/Malody {keymode}k Converts"
+		
+		print("Parsing charts...")
+		library = build_library("../download-malody-charts/output", limit=None, keymode_filter=keymode)
+		library.print_stats()
+		
+		# ~ print("Writing charts as .sm...")
+		# ~ assemble_sm_pack(library, output_dir)
+		
+		# ~ analyze_msd(output_dir, "output")
 
 if __name__ == "__main__":
 	main()

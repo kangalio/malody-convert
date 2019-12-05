@@ -66,7 +66,7 @@ def sm_bpm_string(song):
 		bpm_strings.append(f"{absolute_bar*4}={bpm}")
 	return ",\n".join(bpm_strings)
 
-def write_sm(song):
+def gen_sm(song):
 	o = ""
 	
 	background = song.charts[0].background # Bluntly discard every background but the first
@@ -77,6 +77,7 @@ def write_sm(song):
 		"ARTISTTRANSLIT": song.artist_translit,
 		"MUSIC": song.audio,
 		"OFFSET": song.offset,
+		"CREDIT": ", ".join(song.get_creator_list()),
 		"BACKGROUND": background,
 		"BANNER": background, # Not sure if this is a good idea
 		"BPMS": sm_bpm_string(song),
@@ -91,12 +92,12 @@ def write_sm(song):
 	for chart in song.charts:
 		note_section = sm_note_data(chart.notes, chart.num_columns)
 		difficulty = chart.difficulty or 1
-		s = chart.chart_string[:3] or "" # Chart name e.g. "4k Super"
 		for type_string in CHART_TYPE_STRINGS[chart.num_columns]:
-			o += f"\n//---------------{type_string} - {s}----------------\n" \
+			o += f"\n// Credit for this chart goes to Malody mapper \"{chart.creator}\"\n"
+			o += f"//---------------{type_string} - {chart.chart_string}----------------\n" \
 					+ f"#NOTES:\n" \
 					+ f"     {type_string}:\n" \
-					+ f"     :\n" \
+					+ f"     {chart.chart_string}:\n" \
 					+ f"     Edit:\n" \
 					+ f"     {difficulty}:\n" \
 					+ f"     0,0,0,0,0:\n" \

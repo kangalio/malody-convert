@@ -54,6 +54,10 @@ class Song:
 		self.artist_translit = None
 		self.bpm_changes = None # List of tuples (RowTime, bpm int)
 		self.malody_id = None
+	
+	def get_creator_list(self):
+		creators = [chart.creator for chart in self.charts]
+		return list(set(creators)) # Filter out duplicates
 
 class Library:
 	def __init__(self, songs=[]):
@@ -130,7 +134,7 @@ class Library:
 			return # If not key mode, ignore
 		if verify: self.verify_mc(mc)
 		if keymode_filter and keymode_filter != mc["meta"]["mode_ext"]["column"]:
-			return # Wrong keymode is filtered
+			return # Chart with wrong keymode is filtered
 		
 		song = self.get_song_by_malody_id(mc["meta"]["song"]["id"])
 		chart = Chart() # Chart output object
@@ -138,14 +142,14 @@ class Library:
 		
 		chart.creator = mc["meta"]["creator"]
 		chart.chart_string = mc["meta"]["version"]
-		print(chart.chart_string)
+		# ~ print(chart.chart_string)
 		chart.background = mc["meta"].get("background", None)
 		chart.num_columns = mc["meta"]["mode_ext"]["column"]
 		
-		# Try to find difficulty from the chart string
+		# Try to smartly find difficulty from the chart string
 		numbers = map(int, re.findall(r"\d+", chart.chart_string))
 		numbers = [n for n in numbers if n != chart.num_columns and n < 100]
-		if len(numbers) == 1:
+		if len(numbers) == 1: # Only use when found unambigous match
 			chart.difficulty = numbers[0]
 		
 		if "titleorg" in mc["meta"]["song"]:
@@ -191,7 +195,7 @@ class Library:
 				if is_hold:
 					end_row = self.parse_mc_rowtime(event["endbeat"])
 					notes.append(Note(column, end_row, NoteType.TAIL))
-			elif event_type == 1: # Audio event
+			elif event_type >= 1: # Audio event
 				song.audio = event["sound"]
 				offset_ms = event.get("offset", 0)
 				song.offset = offset_ms / 1000
