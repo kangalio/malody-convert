@@ -95,14 +95,14 @@ def sm_bpm_string(song):
 	
 	bpm_strings = []
 	for row, bpm in zip(rows, bpms):
-		bpm_strings.append(f"{row*4}={bpm:.10}")
+		bpm_strings.append(f"{row*4}={bpm}")
 	return ",\n".join(bpm_strings)
 
 def gen_sm(song):
 	o = ""
 	
-	if any(chart.audio is None for chart in song.charts):
-		subtitle = "One or more charts have no audio because keysounds are not supported"
+	if song.audio is None:
+		subtitle = "Keysounds are not supported in Etterna, so this file has no audio"
 	else:
 		subtitle = None
 	
