@@ -25,7 +25,6 @@ def build_library(malody_songs_dir, limit=None, **kwargs):
 	
 	if limit: mc_paths = mc_paths[:limit]
 	for path in mc_paths:
-		# ~ print(f"Parsing chart from {path}")
 		try:
 			library.parse_mc(path, verify=False, **kwargs)
 		except Exception as e:
@@ -34,32 +33,49 @@ def build_library(malody_songs_dir, limit=None, **kwargs):
 	library.clean_empty_songs()
 	return library
 
-def assemble_sm_pack(library, output_dir):
-	for song in library.songs:
-		source_path = song.charts[0].source_path
-		source_dir = os.path.dirname(source_path)
-		target_dir = os.path.join(output_dir, f"{song.title} [{song.malody_id}]")
-		os.makedirs(target_dir, exist_ok=True)
-		target_path = os.path.join(target_dir, "file.sm")
-		
-		for src_file in glob(os.path.join(source_dir, "*")):
-			target_file = os.path.join(target_dir, os.path.basename(src_file))
-			if src_file.endswith(".mc"):
-				target_file += ".old"
-			# ~ print(f"Copying {src_file} to {target_file}")
-			copy_maybe(src_file, target_file)
-		
-		with open(target_path, "w") as f:
-			print(f"Writing chart from {source_path} into {target_path}")
-			try:
-				f.write(gen_sm(song))
-				# ~ gen_sm(song)
-			except Exception:
-				util.logger.exception(f"Error while writing into {target_path} from {source_path}")
+PATH_ESCAPE_MAPPING = str.maketrans("", "", r'\/*?:"<>|')
+def assemble_sm_pack(library, output_dir, separate_charts=False):
+	if separate_charts:
+		for song in library.songs:
+			charts = song.charts
+			for i, chart in enumerate(charts):
+				source_path = chart.source_path
+				source_dir = os.path.dirname(source_path)
+				song_dir = f"{song.title} [{song.malody_id}]"
+				if separate_charts: song_dir += f" {i}"
+				song_dir = util.escape_filename(song_dir)
+				target_dir = os.path.join(output_dir, song_dir)
+				os.makedirs(target_dir, exist_ok=True)
+				target_path = os.path.join(target_dir, "file.sm")
+				
+				for src_file in glob(os.path.join(source_dir, "*")):
+					target_file = os.path.join(target_dir, os.path.basename(src_file))
+					if src_file.endswith(".mc"):
+						target_file += ".old"
+					# ~ print(f"Copying {src_file} to {target_file}")
+					copy_maybe(src_file, target_file)
+				
+				with open(target_path, "w") as f:
+					print(f"Writing chart from {source_path} into {target_path}")
+					try:
+						if separate_charts: song.charts = [chart]
+						f.write(gen_sm(song))
+						# ~ gen_sm(song)
+					except Exception:
+						util.logger.exception(f"Error while writing into {target_path} from {source_path}")
+			song.charts = charts
 
 def analyze(song_dir):
 	sm_path = os.path.join(song_dir, "file.sm")
-	lines = os.popen(f"./minacalc '{sm_path}'").readlines()
+	try:
+		output = subprocess.check_output(["./minacalc", sm_path], stderr=subprocess.STDOUT)
+		if b"failed to open the file" in output:
+			print(f"Couldn't open file {sm_path}")
+			return []
+		lines = output.decode("UTF-8").splitlines()
+	except subprocess.CalledProcessError:
+		print("Crash", song_dir)
+		return []
 	
 	overalls = []
 	for line in lines:

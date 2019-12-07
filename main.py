@@ -1,32 +1,34 @@
+import util
 from convert import *
 
 """
 TODO:
-- Limit snap to 192nd
 - Maybe render keysounds
-- Look at issue with unbounded holds
 - Look at data.zip not being extracted
+- More escaping! Especially # escaping in .sm meta tags
 
 Done:
+- Limit snap to 192nd
 - Offsync problems! E.g. in Accelerator and that other chart I played
 - Better folder naming scheme
 """
 
 def main():
-	# ~ for keymode_filter in [6,7,8,9,10]:
+	malody_source_dir = "malody-dump/"
+	# ~ malody_source_dir = "../download-malody-charts/output"
+	
 	for keymode in [4]:
 	
-		# ~ output_dir = f"output/Malody {keymode}k Converts"
-		output_dir = f"output/test"
+		output_dir = f"output/Malody {keymode}k Converts"
 		
-		print("Parsing charts...")
-		library = build_library("../download-malody-charts/output", limit=100, keymode_filter=keymode)
-		library.print_stats()
+		# ~ print("Parsing charts...")
+		# ~ library = build_library(malody_source_dir, limit=None, keymode_filter=keymode)
+		# ~ library.print_stats()
 		
-		print("Writing charts as .sm...")
-		assemble_sm_pack(library, output_dir)
+		# ~ print("Writing charts as .sm...")
+		# ~ assemble_sm_pack(library, output_dir, separate_charts=True)
 		
-		# ~ analyze_msd(output_dir, "output")
+		analyze_msd(output_dir, "output")
 
 if __name__ == "__main__":
 	main()
