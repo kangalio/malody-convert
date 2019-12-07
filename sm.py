@@ -95,11 +95,15 @@ def sm_bpm_string(song):
 		
 		if i - 1 >= 0:
 			prev_row = rows[i - 1]
+			if snapped_row == prev_row: snapped_row += 1/192
+			
 			time_mul_a = (snapped_row - prev_row) / (row - prev_row)
 			bpms[i-1] *= time_mul_a
 		
 		if i + 1 < len(rows):
 			next_row = rows[i + 1]
+			if snapped_row == next_row: snapped_row -= 1/192
+			
 			if next_row - row != 0: # Prevent div-by-0 errors
 				time_mul_b = (next_row - snapped_row) / (next_row - row)
 				bpms[i] *= time_mul_b
