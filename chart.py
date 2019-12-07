@@ -195,10 +195,10 @@ class Library:
 		
 		if "org" in mc["meta"]["song"]:
 			org = mc["meta"]["song"]["org"]
-			if "title" in org:
+			if "title" in org and org["title"] != "":
 				song.title_translit = song.title
 				song.title = org["title"]
-			if "artist" in org:
+			if "artist" in org and org["artist"] != "":
 				song.artist_translit = song.artist
 				song.artist = org["artist"]
 		
