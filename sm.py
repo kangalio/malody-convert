@@ -91,14 +91,22 @@ def sm_bpm_string(song):
 		if util.is_whole(row * 192): continue
 		
 		# New row is snapped to the 192nd grid to satisfy SM
-		new_row = round(row * 192) / 192
+		snapped_row = round(row * 192) / 192
 		
-		time_mul_a = (new_row - rows[i-1]) / (row - rows[i-1])
-		time_mul_b = (rows[i+1] - new_row) / (rows[i+1] - row)
+		if i - 1 >= 0:
+			prev_row = rows[i - 1]
+			time_mul_a = (snapped_row - prev_row) / (row - prev_row)
+			bpms[i-1] *= time_mul_a
 		
-		rows[i] = new_row
-		bpms[i-1] *= time_mul_a
-		bpms[i] *= time_mul_b
+		if i + 1 < len(rows):
+			next_row = rows[i + 1]
+			if next_row - row != 0: # Prevent div-by-0 errors
+				time_mul_b = (next_row - snapped_row) / (next_row - row)
+				bpms[i] *= time_mul_b
+		else:
+			print("Warning: Can't adjust forward bpm when snapping bpm change")
+		
+		rows[i] = snapped_row
 	
 	bpm_strings = []
 	for row, bpm in zip(rows, bpms):
