@@ -182,19 +182,25 @@ class Library:
 		if len(numbers) == 1: # Only use when found unambigous match
 			chart.difficulty = numbers[0]
 		
+		song.title = mc["meta"]["song"]["title"]
+		song.artist = mc["meta"]["song"]["artist"]
+		
 		if "titleorg" in mc["meta"]["song"]:
+			song.title_translit = song.title
 			song.title = mc["meta"]["song"]["titleorg"]
-			song.title_translit = mc["meta"]["song"]["title"]
-		else:
-			song.title = mc["meta"]["song"]["title"]
 		
 		if "artistorg" in mc["meta"]["song"]:
+			song.artist_translit = song.artist
 			song.artist = mc["meta"]["song"]["artistorg"]
-			song.artist_translit = mc["meta"]["song"]["artist"]
-		else:
-			song.artist = mc["meta"]["song"]["artist"]
 		
-		# TODO: implement original titles in "org" subobject
+		if "org" in mc["meta"]["song"]:
+			org = mc["meta"]["song"]["org"]
+			if "title" in org:
+				song.title_translit = song.title
+				song.title = org["title"]
+			if "artist" in org:
+				song.artist_translit = song.artist
+				song.artist = org["artist"]
 		
 		chart.video = mc["meta"].get("video", None)
 		
