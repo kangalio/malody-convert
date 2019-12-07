@@ -15,3 +15,7 @@ def gcd(a):
 def is_whole(n):
 	error = abs(n - round(n))
 	return error < 1e-6
+
+PATH_ESCAPE_MAPPING = str.maketrans("", "", r'\/*?:"<>|')
+def escape_filename(filename):
+	return filename.translate(PATH_ESCAPE_MAPPING)
