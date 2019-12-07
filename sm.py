@@ -59,6 +59,13 @@ def sm_note_data(notes, columns):
 		
 		for note in bar_notes:
 			row_pos = round(note.row.beat / note.row.snap * snap)
+			
+			# Sometimes we have, say, a beat on 383 when the snap is 384
+			# Snapping to 192nds makes that beat become 191.5, which is
+			# rounded to 192 and boom, we have an out-of-bounds beat.
+			# So we clamp this to snap-1 (191 in this example) to avoid
+			row_pos = min(row_pos, snap - 1)
+			
 			try:
 				rows[row_pos][note.column] = note.note_type.to_sm()
 			except Exception as e:
