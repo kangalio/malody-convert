@@ -62,6 +62,7 @@ class Song:
 		self.artist_translit = None
 		self.bpm_changes = None # List of tuples (RowTime, bpm int)
 		self.malody_id = None
+		self.is_keysounded = None
 	
 	def get_creator_list(self):
 		creators = [chart.creator for chart in self.charts]
@@ -124,7 +125,7 @@ class Library:
 			subbeat = -subbeat
 		
 		bar = beats // 4
-		beat = (beats % 4) + subbeat / subbeat_snap # num quarters, float
+		beat = (beats % 4) + subbeat / subbeat_snap
 		snap = subbeat_snap * 4
 		beat = round(beat / 4 * snap) # Float should be whole number now. Round to make int
 		
@@ -134,6 +135,25 @@ class Library:
 		beat = beat % snap
 		
 		return RowTime(bar, beat, snap)
+	
+	def add_note_event(self, chart, notes, event):
+		is_hold = "endbeat" in event
+		
+		column = event["column"]
+		if column >= chart.num_columns:
+			# Some charts have notes on non-existing lanes.
+			# Malody ignores those notes, so we do too
+			return
+		
+		row = self.parse_mc_rowtime(event["beat"])
+		note_type = NoteType.HOLD_HEAD if is_hold else NoteType.TAP
+		notes.append(Note(column, row, note_type))
+		
+		if is_hold:
+			end_row = self.parse_mc_rowtime(event["endbeat"])
+			notes.append(Note(column, end_row, NoteType.TAIL))
+		
+		return notes
 	
 	def parse_mc(self, path, verify=True, keymode_filter=None):
 		with open(path) as f:
@@ -152,6 +172,7 @@ class Library:
 		chart.chart_string = mc["meta"]["version"]
 		chart.background = mc["meta"].get("background", None)
 		chart.num_columns = mc["meta"]["mode_ext"]["column"]
+		chart.is_keysounded = False
 		
 		if chart in song.charts: return # Duplicate chart
 		
@@ -184,35 +205,31 @@ class Library:
 			bpm_changes.append((row, bpm))
 		song.bpm_changes = bpm_changes
 		
+		has_warned_about_keysounds = False
+		
 		notes = []
-		for event in mc["note"]:
-			event_type = event.get("type", 0)
-			if event_type == 1 and "sound" not in event:
-				event_type = 0
-			if event_type == 0: # Note event
-				is_hold = "endbeat" in event
+		for event in sorted(mc["note"], key=lambda e: e["beat"][0]):
+			if "column" in event: # Note event
+				self.add_note_event(chart, notes, event)
+			
+			if "sound" in event: # Audio event (may be keysounded)
+				# If song already has audio, ignore
+				if song.audio is not None: continue
 				
-				column = event["column"]
-				if column >= chart.num_columns:
-					# Some charts have notes on non-existing lanes.
-					# Malody ignores those notes, so we do too
-					continue
-				row = self.parse_mc_rowtime(event["beat"])
-				note_type = NoteType.HOLD_HEAD if is_hold else NoteType.TAP
-				notes.append(Note(column, row, note_type))
+				if "column" in event and event["column"] < chart.num_columns: # If keysounded
+					print("Warning: Using keysound on first beat as song audio")
 				
-				if is_hold:
-					end_row = self.parse_mc_rowtime(event["endbeat"])
-					notes.append(Note(column, end_row, NoteType.TAIL))
-			elif event_type >= 1: # Audio event
+				if event["beat"][:2] != [0, 0]:
+					print("Warning: Audio event not on first beat. Song will be misaligned")
+				
 				song.audio = event["sound"]
 				offset_ms = event.get("offset", 0)
 				song.offset = offset_ms / 1000
-				if event.get("vol", 100) != 100:
-					pass
-					#print(f"Warning: 'vol' is not 100 but {event['vol']}")
-			else:
-				print(f"Warning: unknown event {json.dumps(event)}")
+				# There is also the 'vol' tag which sets the song's
+				# volume. I see absolutely no reason to have that tag
+				# and it's not supported in SM anyway so we won't do
+				# anything about it here
+		
 		# Sort notes chronologically and assign to chart
 		chart.notes = sorted(notes, key=lambda note: note.row.absolute_bar())
 		
