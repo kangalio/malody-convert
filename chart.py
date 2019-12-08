@@ -63,7 +63,7 @@ class Song:
 		self.artist_translit = None
 		self.bpm_changes = None # List of tuples (RowTime, bpm int)
 		self.malody_id = None
-		self.is_keysounded = None
+		self.may_be_keysounded = None
 	
 	def get_creator_list(self):
 		creators = [chart.creator for chart in self.charts]
@@ -173,7 +173,7 @@ class Library:
 		chart.chart_string = mc["meta"]["version"]
 		chart.background = mc["meta"].get("background", None)
 		chart.num_columns = mc["meta"]["mode_ext"]["column"]
-		chart.is_keysounded = False
+		chart.may_be_keysounded = False
 		
 		if chart in song.charts: return # Duplicate chart
 		
@@ -212,7 +212,7 @@ class Library:
 			bpm_changes.append((row, bpm))
 		song.bpm_changes = bpm_changes
 		
-		has_warned_about_keysounds = False
+		has_found_audio = False
 		
 		notes = []
 		for event in sorted(mc["note"], key=lambda e: e["beat"][0]):
@@ -221,7 +221,10 @@ class Library:
 			
 			if "sound" in event: # Audio event (may be keysounded)
 				# If song already has audio, ignore
-				if song.audio is not None: continue
+				if has_found_audio:
+					chart.may_be_keysounded = True
+					continue
+				has_found_audio = True
 				
 				if "column" in event and event["column"] < chart.num_columns: # If keysounded
 					print("Warning: Using keysound on first beat as song audio")
@@ -230,7 +233,6 @@ class Library:
 				# to add this into the .sm offset calculation.
 				audio_start_row = self.parse_mc_rowtime(event["beat"])
 				audio_start_time = util.get_seconds_at(song.bpm_changes, audio_start_row)
-				print(f"Audio starts at {audio_start_time} seconds")
 				
 				song.audio = event["sound"]
 				offset_ms = event.get("offset", 0)

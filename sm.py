@@ -120,8 +120,9 @@ def sm_bpm_string(song):
 def gen_sm(song):
 	o = ""
 	
-	if any(chart.is_keysounded for chart in song.charts):
-		subtitle = "One or more charts are using keysounds which are not supported in Etterna"
+	num_keysounded = sum(chart.may_be_keysounded for chart in song.charts)
+	if num_keysounded > 0:
+		subtitle = "This song uses keysounds. The song audio may not be available"
 	else:
 		subtitle = None
 	
