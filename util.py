@@ -18,7 +18,12 @@ def is_whole(n):
 
 PATH_ESCAPE_MAPPING = str.maketrans("", "", r'\/*?:"<>|')
 def escape_filename(filename):
-	return filename.translate(PATH_ESCAPE_MAPPING)
+	# Strip invalid chars
+	filename = filename.translate(PATH_ESCAPE_MAPPING)
+	# Strip non-ascii
+	filename = filename.encode("ascii", errors="ignore").decode()
+	
+	return filename
 
 def get_seconds_at(bpm_changes, row):
 	row = row.absolute_bar()
