@@ -1,6 +1,7 @@
 import json, re
 from enum import Enum
 from collections import Counter
+import util
 
 class NoteType(Enum):
 	TAP = 0
@@ -225,12 +226,15 @@ class Library:
 				if "column" in event and event["column"] < chart.num_columns: # If keysounded
 					print("Warning: Using keysound on first beat as song audio")
 				
-				if event["beat"][:2] != [0, 0]:
-					print("Warning: Audio event not on first beat. Song will be misaligned")
+				# Audio can start at for example the second bar. We have
+				# to add this into the .sm offset calculation.
+				audio_start_row = self.parse_mc_rowtime(event["beat"])
+				audio_start_time = util.get_seconds_at(song.bpm_changes, audio_start_row)
+				print(f"Audio starts at {audio_start_time} seconds")
 				
 				song.audio = event["sound"]
 				offset_ms = event.get("offset", 0)
-				song.offset = offset_ms / 1000
+				song.offset = audio_start_time + offset_ms / 1000
 				# There is also the 'vol' tag which sets the song's
 				# volume. I see absolutely no reason to have that tag
 				# and it's not supported in SM anyway so we won't do
