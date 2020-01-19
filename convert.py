@@ -22,6 +22,7 @@ def build_library(malody_songs_dir, limit=None, **kwargs):
 	library = Library()
 	
 	mc_paths = glob(os.path.join(malody_songs_dir, "*/*/*.mc"))
+	# ~ mc_paths = glob(os.path.join(malody_songs_dir, "_song_587/*/*.mc"))
 	
 	if limit: mc_paths = mc_paths[:limit]
 	for path in mc_paths:
@@ -34,36 +35,39 @@ def build_library(malody_songs_dir, limit=None, **kwargs):
 	return library
 
 PATH_ESCAPE_MAPPING = str.maketrans("", "", r'\/*?:"<>|')
-def assemble_sm_pack(library, output_dir, separate_charts=False):
-	if separate_charts:
-		for song in library.songs:
-			charts = song.charts
-			for i, chart in enumerate(charts):
-				source_path = chart.source_path
-				source_dir = os.path.dirname(source_path)
-				song_dir = f"{song.title} [{song.malody_id}]"
-				if separate_charts: song_dir += f" {i}"
-				song_dir = util.escape_filename(song_dir)
-				target_dir = os.path.join(output_dir, song_dir)
-				os.makedirs(target_dir, exist_ok=True)
-				target_path = os.path.join(target_dir, "file.sm")
-				
-				for src_file in glob(os.path.join(source_dir, "*")):
-					target_file = os.path.join(target_dir, os.path.basename(src_file))
-					if src_file.endswith(".mc"):
-						target_file += ".old"
-					# ~ print(f"Copying {src_file} to {target_file}")
-					copy_maybe(src_file, target_file)
-				
+def assemble_sm_pack(library, output_dir, separate_charts=False, simulate=False):
+	for song in library.songs:
+		charts = song.charts
+		for i, chart in enumerate(charts):
+			source_path = chart.source_path
+			source_dir = os.path.dirname(source_path)
+			song_dir = f"{song.title} [{song.malody_id}]"
+			if separate_charts: song_dir += f" {i}"
+			song_dir = util.escape_filename(song_dir)
+			target_dir = os.path.join(output_dir, song_dir)
+			os.makedirs(target_dir, exist_ok=True)
+			target_path = os.path.join(target_dir, "file.sm")
+			
+			for src_file in glob(os.path.join(source_dir, "*")):
+				target_file = os.path.join(target_dir, os.path.basename(src_file))
+				if src_file.endswith(".mc"):
+					target_file += ".old"
+				# ~ print(f"Copying {src_file} to {target_file}")
+				copy_maybe(src_file, target_file)
+			
+			if simulate:
+				gen_sm(song)
+			else:
 				with open(target_path, "w") as f:
-					print(f"Writing chart from {source_path} into {target_path}")
+					if not simulate: print(f"Writing chart from {source_path} into {target_path}")
 					try:
 						if separate_charts: song.charts = [chart]
 						f.write(gen_sm(song))
-						# ~ gen_sm(song)
 					except Exception:
 						util.logger.exception(f"Error while writing into {target_path} from {source_path}")
-			song.charts = charts
+			
+			if not separate_charts: break
+		song.charts = charts
 
 def analyze(song_dir):
 	sm_path = os.path.join(song_dir, "file.sm")
@@ -141,7 +145,7 @@ def analyze_msd(basedir, outdir, soft_pack_limit=200, hard_pack_limit=350):
 		subpack_size = math.ceil(len(song_dirs) / num_subpacks)
 		for i, song_dir in enumerate(song_dirs):
 			if i % subpack_size == 0:
-				pack_name = f"Malody 4k Megapack ({lower}-{upper})"
+				pack_name = f"Malody 4k Converts ({lower}-{upper})"
 				if num_subpacks > 1:
 					pack_name = pack_name[:-1] + f" {i//subpack_size+1})"
 				dst_parent = os.path.join(outdir, "4k-grouped", pack_name)
