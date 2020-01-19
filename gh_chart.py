@@ -1,4 +1,4 @@
-from chart import Song, Chart, DiffType
+from chart import Song, Chart, DiffType, RowTime
 
 # All possible section names:
 # [Song]
@@ -67,7 +67,25 @@ def parse_meta(song, tags, settings):
 	song.audio = settings.get("audio", None)
 
 def parse_sync(song, tags):
-	song.bpm_changes = []
+	bpm_changes = []
+	
+	for key, value in tags:
+		time = int(key)
+		event_type, event_value = value.split(" ")
+		
+		if event_type == "B": # Bpm
+			bar = time / (192 * 4)
+			beat = time % (192 * 4)
+			rowtime = RowTime(bar, beat, 192 * 4)
+			
+			bpm = float(event_value) / 1000
+			bpm_changes.append((rowtime, bpm))
+		elif event_type == "TS": # Time signature
+			pass # Not sure what to do with time signature
+		else:
+			raise Exception(f"Unknown sync event {key} = {value}")
+	
+	song.bpm_changes = bpm_changes
 
 def parse_chart_lines(song, tags, diff_str, settings):
 	chart = Chart()
