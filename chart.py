@@ -12,6 +12,14 @@ class NoteType(Enum):
 	def to_sm(self):
 		return [1, 2, 4, 3, "M"][self.value]
 
+class DiffType(Enum):
+	NOVICE = 0
+	EASY = 1
+	MEDIUM = 2
+	HARD = 3
+	EXPERT = 4
+	EDIT = 5
+
 class RowTime:
 	# bpb = beats per bar
 	def __init__(self, bar, beat, snap):
@@ -38,6 +46,7 @@ class Chart:
 		self.video = None
 		self.background = None
 		self.num_columns = None
+		self.diff_type = None
 		self.difficulty = None # Can be None
 		self.notes = None
 		
@@ -60,12 +69,15 @@ class Song:
 		self.title_translit = None
 		self.artist = None
 		self.artist_translit = None
+		self.creator = None
+		self.creator_img = None
 		self.bpm_changes = None # List of tuples (RowTime, bpm int)
 		self.malody_id = None
 		self.may_be_keysounded = None
 	
 	def get_creator_list(self):
-		creators = [chart.creator for chart in self.charts]
+		creators = [chart.creator for chart in self.charts if chart.creator]
+		creators.append(self.creator)
 		return list(set(creators)) # Filter out duplicates
 
 class Library:

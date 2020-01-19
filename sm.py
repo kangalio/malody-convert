@@ -120,8 +120,12 @@ def sm_bpm_string(song):
 def gen_sm(song):
 	o = ""
 	
-	num_keysounded = sum(chart.may_be_keysounded for chart in song.charts)
-	if num_keysounded > 0:
+	# No idea how the commented-out code didn't crash before (there is
+	# no may_be_keysounded in Chart)
+	
+	# ~ num_keysounded = sum(chart.may_be_keysounded for chart in song.charts)
+	# ~ if num_keysounded > 0:
+	if song.may_be_keysounded:
 		subtitle = "This song uses keysounds. The song audio may not be available"
 	else:
 		subtitle = None
@@ -150,14 +154,23 @@ def gen_sm(song):
 	for chart in song.charts:
 		note_section = sm_note_data(chart.notes, chart.num_columns)
 		difficulty = chart.difficulty or 1
-		chart_string_escaped = escape(chart.chart_string)
+		diff_type = chart.diff_type or DiffType.EDIT
+		
+		if chart.chart_string is None:
+			chart_string_escaped = ""
+		else:
+			chart_string_escaped = escape(chart.chart_string)
+		
+		# This loop is executed only once in most cases
 		for type_string in CHART_TYPE_STRINGS[chart.num_columns]:
-			o += f"\n// Credit for this chart goes to Malody mapper \"{chart.creator}\"\n"
-			o += f"//---------------{type_string} - {chart.chart_string}----------------\n" \
+			o += "\n" # Newline between header and charts
+			if chart.creator:
+				o += f"// Credit for this chart goes to Malody mapper \"{chart.creator}\"\n"
+			o += f"//---------------{type_string} - {chart.chart_string or ''}----------------\n" \
 					+ f"#NOTES:\n" \
 					+ f"     {type_string}:\n" \
 					+ f"     {chart_string_escaped}:\n" \
-					+ f"     Edit:\n" \
+					+ f"     {diff_type}:\n" \
 					+ f"     {difficulty}:\n" \
 					+ f"     0,0,0,0,0:\n" \
 					+ f"{note_section}\n;\n"
